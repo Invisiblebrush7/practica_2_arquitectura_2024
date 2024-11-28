@@ -1,0 +1,4 @@
+## Way to assign a color
+
+** First 2 0's are useless. 00 - Red, 00 - Green, ff - Blue **
+`*(led_init_address) = 0x00_00_ff_ff;`
