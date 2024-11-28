@@ -1,9 +1,12 @@
 #include <stdlib.h>
 #include "ripes_system.h"
 
+#define MAX_SNAKE_LENGTH 100
+#define MAX_APPLES 10
+
 struct Snake {
-  unsigned int x;
-  unsigned int y;
+  unsigned int x[MAX_SNAKE_LENGTH];
+  unsigned int y[MAX_SNAKE_LENGTH];
   unsigned int length;
   unsigned int direction; // 0 = up, 1 = right, 2 = down, 3 = left
 };
@@ -14,20 +17,20 @@ struct Apple {
   unsigned int y;
 };
 typedef struct Apple Apple;
-#define MAX_APPLES 10
 Apple apple_pool[MAX_APPLES];
 int apple_pool_index = 0;
 
-unsigned int apple_color = 0x0000ff00; // red
-unsigned int snake_color = 0x00ff0000; // blue
+unsigned int apple_color = 0x0000ff00; // green
+unsigned int snake_color = 0x00ff0000; // red
 unsigned int empty_color = 0x00000000; // black
+unsigned int snake_head_color = 0x000000ff; // blue
 
 
 // LED functions
 void set_pixel(unsigned int x, unsigned int y, unsigned int color);
 
 // Snake functions
-void draw_snake(unsigned int x, unsigned int y, Snake *snake);
+void draw_snake(Snake *snake) ;
 
 // Apple functions
 Apple* draw_apple(unsigned int x, unsigned int y);
@@ -57,11 +60,23 @@ void game_loop() {
 
 
   // Snake vars
-  unsigned int snake_length = 1;
+  unsigned int snake_length = 4;
   unsigned int x = initial_x;
   unsigned int y = initial_y;
   unsigned int initial_direction = -1; // 0 = up, 1 = down, 2 = left, 3 = right, -1 = no direction (start direction)
-  Snake snake = {x, y, snake_length, initial_direction};
+  Snake snake;
+  snake.length = snake_length;
+  snake.direction = initial_direction;
+
+  snake.x[0] = x;
+  snake.y[0] = y;
+  snake.x[1] = x + 1;
+  snake.y[1] = y;
+  snake.x[2] = x + 2;
+  snake.y[2] = y;
+  snake.x[3] = x + 3;
+  snake.y[3] = y;
+
 
   // Apple vars
   Apple* apple = NULL;
@@ -112,11 +127,15 @@ void game_loop() {
       snake.length++;
       apple_exists = 0;
     } else if (check_collision_with_snake(&snake)) {
+      printf("Game over\n");
       game_state = 0;
       continue;
     }
 
-    draw_snake(x, y, &snake);
+
+    move_snake(&snake);
+
+    snake.direction = -1;
   }
 
 }
@@ -155,22 +174,51 @@ void set_pixel(unsigned int x, unsigned int y, unsigned int color) {
 /*
   Paint a SNAKE_LENGHT*1 square, representing the snake, with red at (x, y)
 */
-void draw_snake(unsigned int x, unsigned int y, Snake* snake) {
+void draw_snake(Snake *snake) {
+  for (unsigned int i = 0; i < snake->length; i++) {
+    if (i == 0) {
+      set_pixel(snake->x[i], snake->y[i], snake_head_color);
+    } else {
+      set_pixel(snake->x[i], snake->y[i], snake_color);
+    }
+  }
+}
 
-  snake->x = x;
-  snake->y = y;
+void move_snake(Snake* snake) {
 
-  // If snake is at starting position, just draw it
-  if (snake->direction == -1) {
-    set_pixel(x + 0, y, snake_color);
-    set_pixel(x + 1, y, snake_color);
-    set_pixel(x + 2, y, snake_color);
-    set_pixel(x + 3, y, snake_color);
+  // Snake's starting direction is -1, so it doesn't move until a direction is set
+  if(snake->direction == -1) {
+    draw_snake(snake);
     return;
   }
 
-  set_pixel(x, y, snake_color);
+  // Clear the last pixel of the snake
+  unset_pixel(snake->x[snake->length - 1], snake->y[snake->length - 1]);
 
+  // Move each segment to the position of the previous segment
+  for (int i = snake->length - 1; i > 0; i--) {
+    snake->x[i] = snake->x[i - 1];
+    snake->y[i] = snake->y[i - 1];
+  }
+
+  // Update the head position based on the direction
+  switch (snake->direction) {
+    case 0: // Up
+      snake->y[0]--;
+      break;
+    case 1: // Right
+      snake->x[0]++;
+      break;
+    case 2: // Down
+      snake->y[0]++;
+      break;
+    case 3: // Left
+      snake->x[0]--;
+      break;
+  }
+
+  // Draw the snake at the new position
+  draw_snake(snake);
 }
 
 // Apple logic
@@ -208,14 +256,24 @@ Apple* draw_apple(unsigned int x, unsigned int y) {
 }
 
 int check_collision_with_apple(Snake *snake, Apple* apple) {
-  if (snake->x == apple->x && snake->y == apple->y) {
+  if (snake->x[0] == apple->x && snake->y[0] == apple->y) {
     printf("Collision with apple\n");
     return 1;
   }
   return 0;
 }
 int check_collision_with_snake(Snake *snake) {
-  return 0;
+  unsigned int head_x = snake->x[0];
+  unsigned int head_y = snake->y[0];
+
+  // Check if the head collides with any of the body segments
+  for (unsigned int i = 1; i < snake->length; i++) {
+    if (snake->x[i] == head_x && snake->y[i] == head_y) {
+      return 1; // Collision detected
+    }
+  }
+
+  return 0; // No collision
 }
 
 
