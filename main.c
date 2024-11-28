@@ -1,9 +1,11 @@
 #include <stdlib.h>
 #include "ripes_system.h"
 
+// CONSTANTS
 #define MAX_SNAKE_LENGTH 100
-#define MAX_APPLES 10
+#define MAX_APPLES 20
 
+// Structs
 struct Snake {
   unsigned int x[MAX_SNAKE_LENGTH];
   unsigned int y[MAX_SNAKE_LENGTH];
@@ -17,14 +19,17 @@ struct Apple {
   unsigned int y;
 };
 typedef struct Apple Apple;
-Apple apple_pool[MAX_APPLES];
-int apple_pool_index = 0;
 
+
+// Colors
 unsigned int apple_color = 0x0000ff00; // green
 unsigned int snake_color = 0x00ff0000; // red
 unsigned int empty_color = 0x00000000; // black
 unsigned int snake_head_color = 0x000000ff; // blue
 
+// Apples
+Apple apple_pool[MAX_APPLES];
+int apple_pool_index = 0;
 
 // LED functions
 void set_pixel(unsigned int x, unsigned int y, unsigned int color);
@@ -40,6 +45,7 @@ Apple* generate_apple(unsigned int x, unsigned int y);
 // Collision detection
 int check_collision_with_apple(Snake *snake, Apple* apple);
 int check_collision_with_snake(Snake *snake);
+int check_collision_with_walls(Snake *snake);
 
 void game_loop() {
   // Game vars
@@ -126,7 +132,13 @@ void game_loop() {
     if (check_collision_with_apple(&snake, apple)) {
       snake.length++;
       apple_exists = 0;
-    } else if (check_collision_with_snake(&snake)) {
+    } 
+    if (check_collision_with_snake(&snake)) {
+      printf("Game over\n");
+      game_state = 0;
+      continue;
+    }
+    if (check_collision_with_walls(&snake)) {
       printf("Game over\n");
       game_state = 0;
       continue;
@@ -140,10 +152,12 @@ void game_loop() {
 
 }
 
+/* *****************************************
+            LED Matrix functions
+******************************************** */
 /*
   Remove one pixel color, at (x,y)
 */
-
 void unset_pixel(unsigned int x, unsigned int y) {
   unsigned int columns = LED_MATRIX_0_WIDTH;
   unsigned int *led_init_address = LED_MATRIX_0_BASE;
@@ -153,7 +167,6 @@ void unset_pixel(unsigned int x, unsigned int y) {
   led_init_address += offset;
   *(led_init_address) = empty_color;
 }
-
 
 /*
   Paint one pixel, at (x,y) with arg color
@@ -170,6 +183,9 @@ void set_pixel(unsigned int x, unsigned int y, unsigned int color) {
   *(led_init_address) = color;
 }
 
+/* *****************************************
+            Snake Logic
+******************************************** */
 
 /*
   Paint a SNAKE_LENGHT*1 square, representing the snake, with red at (x, y)
@@ -184,8 +200,12 @@ void draw_snake(Snake *snake) {
   }
 }
 
+/*
+  Check if snake is stationary
+  If not, move the snake in the direction snake.direction
+  Remove last pixel of the snake
+*/
 void move_snake(Snake* snake) {
-
   // Snake's starting direction is -1, so it doesn't move until a direction is set
   if(snake->direction == -1) {
     draw_snake(snake);
@@ -221,7 +241,9 @@ void move_snake(Snake* snake) {
   draw_snake(snake);
 }
 
-// Apple logic
+/* *****************************************
+            Apple Logic
+******************************************** */
 
 /*
   Generate a new apple at (x, y)
@@ -255,6 +277,13 @@ Apple* draw_apple(unsigned int x, unsigned int y) {
   return apple;
 }
 
+/* *****************************************
+        Collision detection functions
+******************************************** */
+/*
+  Check if the snake's head collides with the apple
+  Returns 1 if collision is detected, 0 otherwise
+*/
 int check_collision_with_apple(Snake *snake, Apple* apple) {
   if (snake->x[0] == apple->x && snake->y[0] == apple->y) {
     printf("Collision with apple\n");
@@ -262,6 +291,10 @@ int check_collision_with_apple(Snake *snake, Apple* apple) {
   }
   return 0;
 }
+/*
+  Check if the snake's head collides with itself
+  Returns 1 if collision is detected, 0 otherwise
+*/
 int check_collision_with_snake(Snake *snake) {
   unsigned int head_x = snake->x[0];
   unsigned int head_y = snake->y[0];
@@ -275,12 +308,25 @@ int check_collision_with_snake(Snake *snake) {
 
   return 0; // No collision
 }
-
-
-
 /*
-  Main function. Starts the game loop
+  Check if the snake's head collides with the walls
+  Returns 1 if collision is detected, 0 otherwise
 */
+int check_collision_with_walls(Snake *snake) {
+  unsigned int head_x = snake->x[0];
+  unsigned int head_y = snake->y[0];
+
+  // Check if the head collides with any of the walls
+  if (head_x < 0 || head_x > 34 || head_y < 0 || head_y > 24) {
+    return 1; // Collision detected
+  }
+  return 0; // No collision
+}
+
+
+/* *****************************************
+            MAIN FUNCTION
+******************************************** */
 void main() {
   game_loop();
   return 0;
